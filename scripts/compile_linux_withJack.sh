@@ -14,4 +14,4 @@ echo "****************** build library *****************"
 echo "**************************************************"
 echo
 
-sudo python setup.py install --install-layout=deb --use-double --use-jack
+sudo python3 setup.py install --install-layout=deb --use-double --use-jack --compile-externals
