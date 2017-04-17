@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the pyo 0.8.3 documentation
+Welcome to the pyo 0.8.5 documentation
 ===================================================
 
 .. image:: E-PyoIcon.png
@@ -41,6 +41,7 @@ Examples
    Playing with soundfiles <examples/04-soundfiles/index>
    Amplitude envelopes <examples/05-envelopes/index>
    Filtering <examples/06-filters/index>
+   Creating sound effects <examples/07-effects/index>
    Multicore audio programming <examples/18-multicore/index>
 
 Much more to come... Stay tuned!

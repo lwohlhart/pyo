@@ -1,3 +1,88 @@
+2017-04-13 belangeo <belangeo@gmail.com>
+
+    * Fixed segfault in Resample_dealloc function.
+
+2017-04-09 belangeo <belangeo@gmail.com>
+
+    * Fixed segfault when updating ControlSlider value from the audio thread.
+
+2017-04-07 belangeo <belangeo@gmail.com>
+
+    * Fixed CallAfter segfault when deleted inside its own callback.
+
+2017-04-06 belangeo <belangeo@gmail.com>
+
+    * Fixed TableRead which continues to play when freq is negative and loop is off.
+
+2017-04-06 belangeo <belangeo@gmail.com>
+
+    * Added "speed" argument to Seq object. Useful to create continuous time
+      deceleration or acceleration.
+
+2017-03-31 belangeo <belangeo@gmail.com>
+
+    * Upgraded version number to 0.8.5.
+
+2017-03-31 belangeo <belangeo@gmail.com>
+
+    * Added two examples in 07-effects, 01-flanger.py and 02-schroeder-reverb.py.
+
+2017-03-31 belangeo <belangeo@gmail.com>
+
+    * Removed Server.setInOutDefaultDeviceFromHost(host) method.
+      Added a new winhost argument to the Server's initialization.
+      Added pa_get_default_devices_from_host(host) function.
+
+2017-03-27 belangeo <belangeo@gmail.com>
+
+    * Check the jack api version before compiling to ensure existing
+    functions are used (jack_port_set_name/jack_port_rename).
+
+2017-03-26 belangeo <belangeo@gmail.com>
+
+    * Added setInOutDefaultDeviceFromHost(host) to the Server object.
+
+2017-03-24 belangeo <belangeo@gmail.com>
+
+    * Upgraded version number to 0.8.4.
+
+2017-03-23 belangeo <belangeo@gmail.com>
+
+    * Added `id` and `object` attributes to wxgui's object events.
+
+2017-03-22 belangeo <belangeo@gmail.com>
+
+    * Added setJackInputPortNames and setJackOutputPortNames methods to the
+      Server object. This allow the user to rename jack input/output ports.
+
+2017-03-21 belangeo <belangeo@gmail.com>
+
+    * Updated portaudio interface to make it much more secure.
+
+2017-03-20 belangeo <belangeo@gmail.com>
+
+    * Added setIsJackTransportSlave method to Server object (it allows to
+      start/stop the Server from jack transport).
+
+2017-03-17 belangeo <belangeo@gmail.com>
+
+    * Fixed GIL conflicts with portaudio, portmidi and jack library calls.
+
+2017-03-11 belangeo <belangeo@gmail.com>
+
+    * Added a setKeepLast method to TableRead object (will hold last value).
+
+2017-03-10 belangeo <belangeo@gmail.com>
+
+    * Added a setMode method to Selector object to switch between
+      equal power mode and linear fade.
+
+2017-03-06 belangeo <belangeo@gmail.com>
+
+    * Fixed SfMarkerLooper and SfMarkerShuffler markers not accurate
+      when soundfile sampling rate is not the same as the server's
+      sampling rate.
+
 2017-03-04 belangeo <belangeo@gmail.com>
 
     * Added a "title" argument to Server.gui() method.
@@ -14,6 +99,11 @@
 2017-02-19 belangeo <belangeo@gmail.com>
 
     * Added examples about multicore audio programming with pyo.
+
+2017-02-14 belangeo <belangeo@gmail.com>
+
+    * Fixed segfault in MidiListener callback function with python3.
+    * Fixed string versus unicode in MidiDispatcher's getDeviceInfos method.
 
 2017-02-13 belangeo <belangeo@gmail.com>
 

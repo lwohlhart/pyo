@@ -20,9 +20,30 @@ License along with pyo.  If not, see <http://www.gnu.org/licenses/>.
 """
 from distutils.sysconfig import get_python_lib
 from distutils.core import setup, Extension
-import os, sys, py_compile
+import os, sys, py_compile, subprocess
 
-pyo_version = "0.8.3"
+if sys.version_info[0] < 3:
+    def tobytes(strng, encoding=None):
+        "Convert unicode string to bytes."
+        return bytes(strng)
+else:
+    def tobytes(strng, encoding="utf-8"):
+        "Convert unicode string to bytes."
+        return bytes(strng, encoding=encoding)
+
+def get_jack_api():
+    output = subprocess.Popen(["jackd", "-V"], stdout=subprocess.PIPE)
+    text = output.communicate()[0]
+    if text != "":
+        line = text.splitlines()[0]
+        if tobytes("0.124") in line or tobytes("1.9.10") in line:
+            return "JACK_OLD_API"
+        else:
+            return "JACK_NEW_API"
+    else:
+        return "JACK_NEW_API"
+
+pyo_version = "0.8.5"
 build_with_jack_support = False
 compile_externals = False
 
@@ -89,18 +110,22 @@ else:
     macros.append(('USE_OSC', None))
     ad_files.append("osclistenermodule.c")
     obj_files.append("oscmodule.c")
-    libraries += ["lo"]
+    if sys.platform == "win32":
+        libraries += ["liblo-7"]
+    else:
+        libraries += ["lo"]
 
 # Optional Audio / Midi drivers
 if '--use-jack' in sys.argv: 
     sys.argv.remove('--use-jack') 
     build_with_jack_support = True
-    macros.append(('USE_JACK',None))
+    macros.append(('USE_JACK', None))
+    macros.append((get_jack_api(), None))
     ad_files.append("ad_jack.c")
 
 if '--use-coreaudio' in sys.argv: 
     sys.argv.remove('--use-coreaudio') 
-    macros.append(('USE_COREAUDIO',None))
+    macros.append(('USE_COREAUDIO', None))
     ad_files.append("ad_coreaudio.c")
 
 if sys.platform == "darwin":
@@ -135,8 +160,8 @@ else:
 if sys.platform == "win32":
     include_dirs = ['C:\portaudio\include', 'C:\portmidi\pm_common', 'include',
                     'C:\Program Files (x86)\Mega-Nerd\libsndfile\include',
-                    'C:\liblo', 'C:\pthreads\include', 'C:\portmidi\porttime']
-    library_dirs = ['C:\portaudio', 'C:\portmidi', 'C:\liblo', 'C:\pthreads\lib', 
+                    'C:\liblo-0.28', 'C:\pthreads\include', 'C:\portmidi\porttime']
+    library_dirs = ['C:\portaudio', 'C:\portmidi', 'C:\liblo-0.28\src\.libs', 'C:\pthreads\lib', 
                     'C:/Program Files (x86)/Mega-Nerd/libsndfile/bin']
     libraries += ['libsndfile-1', 'pthreadVC2']
     if 'portmidi' in libraries:

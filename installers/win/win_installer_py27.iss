@@ -3,7 +3,7 @@
 
 #define appName "pyo"
 #define pyVer "2.7"
-#define appVer "0.8.3"
+#define appVer "0.8.5"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -41,7 +41,7 @@ Source: "C:\Python27\Lib\site-packages\pyolib\*"; DestDir: "{app}\Lib\site-packa
 Source: "C:\Python27\Lib\site-packages\_pyo.pyd"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
 Source: "C:\Python27\Lib\site-packages\_pyo64.pyd"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
 Source: "C:\Python27\Lib\site-packages\libsndfile-1.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
-Source: "C:\Python27\Lib\site-packages\lo.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
+Source: "C:\Python27\Lib\site-packages\liblo-7.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
 Source: "C:\Python27\Lib\site-packages\portaudio.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
 Source: "C:\Python27\Lib\site-packages\portmidi.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion
 Source: "C:\Python27\Lib\site-packages\porttime.dll"; DestDir: "{app}\Lib\site-packages"; Flags: ignoreversion

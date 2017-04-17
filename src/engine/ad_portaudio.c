@@ -30,7 +30,14 @@ static void portaudio_assert(PaError ecode, const char* cmdName) {
             eText = "???";
         }
         PySys_WriteStdout("portaudio error in %s: %s\n", cmdName, eText);
-        Pa_Terminate();
+
+        if (strcmp(cmdName, "Pa_Initialize") != 0) {
+
+            Py_BEGIN_ALLOW_THREADS
+            Pa_Terminate();
+            Py_END_ALLOW_THREADS
+
+        }
     }
 }
 
@@ -146,7 +153,10 @@ Server_pa_init(Server *self)
     PaSampleFormat sampleFormat;
     PaStreamCallback *streamCallback;
 
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     portaudio_assert(err, "Pa_Initialize");
 
     n = Pa_GetDeviceCount();
@@ -211,7 +221,9 @@ Server_pa_init(Server *self)
     }
 
     if (self->input == -1 && self->output == -1) {
-        if (self->duplex == 1)
+        if (self->duplex == 1) {
+
+            Py_BEGIN_ALLOW_THREADS
             err = Pa_OpenDefaultStream(&be_data->stream,
                                        self->ichnls + self->input_offset,
                                        self->nchnls + self->output_offset,
@@ -220,7 +232,12 @@ Server_pa_init(Server *self)
                                        self->bufferSize,
                                        streamCallback,
                                        (void *) self);
-        else
+            Py_END_ALLOW_THREADS
+
+        }
+        else {
+
+            Py_BEGIN_ALLOW_THREADS
             err = Pa_OpenDefaultStream(&be_data->stream,
                                        0,
                                        self->nchnls + self->output_offset,
@@ -229,9 +246,14 @@ Server_pa_init(Server *self)
                                        self->bufferSize,
                                        streamCallback,
                                        (void *) self);
+            Py_END_ALLOW_THREADS
+
+        }
     }
     else {
-        if (self->duplex == 1)
+        if (self->duplex == 1) {
+
+            Py_BEGIN_ALLOW_THREADS
             err = Pa_OpenStream(&be_data->stream,
                                 &inputParameters,
                                 &outputParameters,
@@ -240,7 +262,12 @@ Server_pa_init(Server *self)
                                 paNoFlag,
                                 streamCallback,
                                 (void *) self);
-        else
+            Py_END_ALLOW_THREADS
+
+        }
+        else {
+
+            Py_BEGIN_ALLOW_THREADS
             err = Pa_OpenStream(&be_data->stream,
                                 (PaStreamParameters *) NULL,
                                 &outputParameters,
@@ -249,6 +276,9 @@ Server_pa_init(Server *self)
                                 paNoFlag,
                                 streamCallback,
                                 (void *) self);
+            Py_END_ALLOW_THREADS
+
+        }
     }
     portaudio_assert(err, "Pa_OpenStream");
     if (err < 0) {
@@ -264,17 +294,31 @@ Server_pa_deinit(Server *self)
     PaError err;
     PyoPaBackendData *be_data = (PyoPaBackendData *) self->audio_be_data;
 
-    if (!Pa_IsStreamStopped(be_data->stream)) {
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_IsStreamStopped(be_data->stream);
+    Py_END_ALLOW_THREADS
+
+    if (!err) {
         self->server_started = 0;
+
+        Py_BEGIN_ALLOW_THREADS
         err = Pa_AbortStream(be_data->stream);
-        portaudio_assert(err, "Pa_AbortStream");
+        Py_END_ALLOW_THREADS
+
+        portaudio_assert(err, "Pa_AbortStream (pa_deinit)");
     }
 
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_CloseStream(be_data->stream);
-    portaudio_assert(err, "Pa_CloseStream");
+    Py_END_ALLOW_THREADS
 
+    portaudio_assert(err, "Pa_CloseStream (pa_deinit)");
+
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_Terminate();
-    portaudio_assert(err, "Pa_Terminate");
+    Py_END_ALLOW_THREADS
+
+    portaudio_assert(err, "Pa_Terminate (pa_deinit)");
 
     free(self->audio_be_data);
     return err;
@@ -286,26 +330,49 @@ Server_pa_start(Server *self)
     PaError err;
     PyoPaBackendData *be_data = (PyoPaBackendData *) self->audio_be_data;
 
-    if (!Pa_IsStreamStopped(be_data->stream)) {
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_IsStreamStopped(be_data->stream);
+    Py_END_ALLOW_THREADS
+
+    if (!err) {
+
+        Py_BEGIN_ALLOW_THREADS
         err = Pa_AbortStream(be_data->stream);
-        portaudio_assert(err, "Pa_AbortStream");
+        Py_END_ALLOW_THREADS
+
+        portaudio_assert(err, "Pa_AbortStream (pa_start)");
     }
+
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_StartStream(be_data->stream);
-    portaudio_assert(err, "Pa_StartStream");
+    Py_END_ALLOW_THREADS
+
+    portaudio_assert(err, "Pa_StartStream (pa_start)");
+
     return err;
 }
 
 int
 Server_pa_stop(Server *self)
 {
+    PaError err;
     PyoPaBackendData *be_data = (PyoPaBackendData *) self->audio_be_data;
 
-    if (!Pa_IsStreamStopped(be_data->stream)) {
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_IsStreamStopped(be_data->stream);
+    Py_END_ALLOW_THREADS
+
+    if (!err) {
 #ifndef _OSX_
-        PaError err = Pa_AbortStream(be_data->stream);
-        portaudio_assert(err, "Pa_AbortStream");
+
+        Py_BEGIN_ALLOW_THREADS
+        err = Pa_AbortStream(be_data->stream);
+        Py_END_ALLOW_THREADS
+
+        portaudio_assert(err, "Pa_AbortStream (pa_stop)");
 #endif
     }
+
     self->server_started = 0;
     self->server_stopped = 1;
     return 0;
@@ -328,7 +395,10 @@ portaudio_count_host_apis(){
     PaError err;
     PaHostApiIndex numApis;
 
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
@@ -337,6 +407,11 @@ portaudio_count_host_apis(){
         numApis = Pa_GetHostApiCount();
         if( numApis < 0 )
             portaudio_assert(numApis, "Pa_GetHostApiCount");
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
         return PyInt_FromLong(numApis);
     }
 }
@@ -346,7 +421,10 @@ portaudio_list_host_apis(){
     PaError err;
     PaHostApiIndex n, i;
 
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 	}
@@ -364,6 +442,11 @@ portaudio_list_host_apis(){
                                   (int)info->defaultOutputDevice);
             }
         }
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
     }
     Py_RETURN_NONE;
 }
@@ -373,13 +456,21 @@ portaudio_get_default_host_api(){
     PaError err;
     PaHostApiIndex i;
 
+    Py_BEGIN_ALLOW_THREADS
     err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
 	}
     else {
         i = Pa_GetDefaultHostApi();
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
         return PyInt_FromLong(i);
     }
 }
@@ -389,7 +480,10 @@ portaudio_count_devices(){
     PaError err;
     PaDeviceIndex numDevices;
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
@@ -398,6 +492,11 @@ portaudio_count_devices(){
         numDevices = Pa_GetDeviceCount();
         if( numDevices < 0 )
             portaudio_assert(numDevices, "Pa_GetDeviceCount");
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
         return PyInt_FromLong(numDevices);
     }
 
@@ -408,7 +507,10 @@ portaudio_list_devices(){
     PaError err;
     PaDeviceIndex n, i;
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
@@ -436,6 +538,11 @@ portaudio_list_devices(){
             }
             PySys_WriteStdout("\n");
         }
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
     }
     Py_RETURN_NONE;
 }
@@ -448,16 +555,17 @@ portaudio_get_devices_infos(){
     inDict = PyDict_New();
     outDict = PyDict_New();
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
-		Py_RETURN_NONE;
 	}
     else {
         n = Pa_GetDeviceCount();
         if (n < 0){
             portaudio_assert(n, "Pa_GetDeviceCount");
-            Py_RETURN_NONE;
         }
         else {
             for (i=0; i < n; ++i){
@@ -465,23 +573,34 @@ portaudio_get_devices_infos(){
                 assert(info);
                 tmpDict = PyDict_New();
                 if (info->maxInputChannels > 0) {
-                    PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString(info->name));
+                    if (PyUnicode_FromString(info->name) == NULL)
+                        PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString("???"));
+                    else
+                        PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString(info->name));
                     PyDict_SetItemString(tmpDict, "host api index", PyInt_FromLong((int)info->hostApi));
                     PyDict_SetItemString(tmpDict, "default sr", PyInt_FromLong((int)info->defaultSampleRate));
                     PyDict_SetItemString(tmpDict, "latency", PyFloat_FromDouble((float)info->defaultLowInputLatency));
                     PyDict_SetItem(inDict, PyInt_FromLong(i), PyDict_Copy(tmpDict));
                 }
                 if (info->maxOutputChannels > 0) {
-                    PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString(info->name));
+                    if (PyUnicode_FromString(info->name) == NULL)
+                        PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString("???"));
+                    else
+                        PyDict_SetItemString(tmpDict, "name", PyUnicode_FromString(info->name));
                     PyDict_SetItemString(tmpDict, "host api index", PyInt_FromLong((int)info->hostApi));
                     PyDict_SetItemString(tmpDict, "default sr", PyInt_FromLong((int)info->defaultSampleRate));
                     PyDict_SetItemString(tmpDict, "latency", PyFloat_FromDouble((float)info->defaultLowOutputLatency));
                     PyDict_SetItem(outDict, PyInt_FromLong(i), PyDict_Copy(tmpDict));
                 }
             }
-            return Py_BuildValue("(OO)", inDict, outDict);
         }
+
+        Py_BEGIN_ALLOW_THREADS
+        err = Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
     }
+    return Py_BuildValue("(OO)", inDict, outDict);
 }
 
 PyObject *
@@ -493,29 +612,38 @@ portaudio_get_output_devices(){
     list = PyList_New(0);
     list_index = PyList_New(0);
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
-		Py_RETURN_NONE;
 	}
     else {
         n = Pa_GetDeviceCount();
         if (n < 0){
             portaudio_assert(n, "Pa_GetDeviceCount");
-            Py_RETURN_NONE;
         }
         else {
             for (i=0; i < n; ++i){
                 const PaDeviceInfo *info=Pa_GetDeviceInfo(i);
                 assert(info);
-                if (info->maxOutputChannels > 0){
-                    PyList_Append(list, PyUnicode_FromString(info->name));
+                if (info->maxOutputChannels > 0) {
                     PyList_Append(list_index, PyInt_FromLong(i));
+                    if (PyUnicode_FromString(info->name) == NULL)
+                        PyList_Append(list, PyUnicode_FromString("???"));
+                    else
+                        PyList_Append(list, PyUnicode_FromString(info->name));
                 }
             }
-            return Py_BuildValue("OO", list, list_index);
         }
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
     }
+    return Py_BuildValue("OO", list, list_index);
 }
 
 PyObject *
@@ -523,7 +651,10 @@ portaudio_get_output_max_channels(PyObject *self, PyObject *arg){
     PaError err;
     PaDeviceIndex n, i = PyInt_AsLong(arg);
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
@@ -536,6 +667,11 @@ portaudio_get_output_max_channels(PyObject *self, PyObject *arg){
         }
         else {
             const PaDeviceInfo *info=Pa_GetDeviceInfo(i);
+
+            Py_BEGIN_ALLOW_THREADS
+            Pa_Terminate();
+            Py_END_ALLOW_THREADS
+
             assert(info);
             return PyInt_FromLong(info->maxOutputChannels);
         }
@@ -547,7 +683,10 @@ portaudio_get_input_max_channels(PyObject *self, PyObject *arg){
     PaError err;
     PaDeviceIndex n, i = PyInt_AsLong(arg);
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
@@ -560,6 +699,11 @@ portaudio_get_input_max_channels(PyObject *self, PyObject *arg){
         }
         else {
             const PaDeviceInfo *info=Pa_GetDeviceInfo(i);
+
+            Py_BEGIN_ALLOW_THREADS
+            Pa_Terminate();
+            Py_END_ALLOW_THREADS
+
             assert(info);
             return PyInt_FromLong(info->maxInputChannels);
         }
@@ -575,29 +719,38 @@ portaudio_get_input_devices(){
     list = PyList_New(0);
     list_index = PyList_New(0);
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
-		Py_RETURN_NONE;
 	}
     else {
         n = Pa_GetDeviceCount();
         if (n < 0){
             portaudio_assert(n, "Pa_GetDeviceCount");
-            Py_RETURN_NONE;
         }
         else {
             for (i=0; i < n; ++i){
                 const PaDeviceInfo *info=Pa_GetDeviceInfo(i);
                 assert(info);
-                if (info->maxInputChannels > 0){
-                    PyList_Append(list, PyUnicode_FromString(info->name));
+                if (info->maxInputChannels > 0) {
                     PyList_Append(list_index, PyInt_FromLong(i));
+                    if (PyUnicode_FromString(info->name) == NULL)
+                        PyList_Append(list, PyUnicode_FromString("???"));
+                    else
+                        PyList_Append(list, PyUnicode_FromString(info->name));
                 }
             }
-            return Py_BuildValue("OO", list, list_index);
         }
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
     }
+    return Py_BuildValue("OO", list, list_index);
 }
 
 PyObject *
@@ -605,16 +758,23 @@ portaudio_get_default_input(){
     PaError err;
     PaDeviceIndex i;
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
 	}
     else {
         i = Pa_GetDefaultInputDevice();
+
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
         return PyInt_FromLong(i);
     }
-
 }
 
 PyObject *
@@ -622,14 +782,21 @@ portaudio_get_default_output(){
     PaError err;
     PaDeviceIndex i;
 
-	err = Pa_Initialize();
+    Py_BEGIN_ALLOW_THREADS
+    err = Pa_Initialize();
+    Py_END_ALLOW_THREADS
+
     if (err != paNoError) {
         portaudio_assert(err, "Pa_Initialize");
 		Py_RETURN_NONE;
 	}
     else {
         i = Pa_GetDefaultOutputDevice();
-        return PyInt_FromLong(i);
 
+        Py_BEGIN_ALLOW_THREADS
+        Pa_Terminate();
+        Py_END_ALLOW_THREADS
+
+        return PyInt_FromLong(i);
     }
 }

@@ -37,7 +37,10 @@ def interpFloat(t, v1, v2):
 
 def tFromValue(value, v1, v2):
     "returns a t (in range 0-1) given a value in the range v1 to v2"
-    return float(value - v1) / (v2 - v1)
+    if (v2 - v1) == 0:
+        return 1.0
+    else:
+        return float(value - v1) / (v2 - v1)
 
 def clamp(v, minv, maxv):
     "clamps a value within a range"
@@ -150,11 +153,11 @@ class ControlSlider(wx.Panel):
 
     def Enable(self):
         self._enable = True
-        self.Refresh()
+        wx.CallAfter(self.Refresh)
 
     def Disable(self):
         self._enable = False
-        self.Refresh()
+        wx.CallAfter(self.Refresh)
 
     def setSliderHeight(self, height):
         self.sliderHeight = height
@@ -205,7 +208,7 @@ class ControlSlider(wx.Panel):
             self.value = powOfTwo(self.value)
         self.clampPos()
         self.selected = False
-        self.Refresh()
+        wx.CallAfter(self.Refresh)
 
     def GetValue(self):
         if self.log:
@@ -997,7 +1000,7 @@ class ViewTable(wx.Frame):
         self.update(samples)
 
     def update(self, samples):
-        wx.CallAfter(self.wavePanel.draw, samples)
+        self.wavePanel.draw(samples)
 
     def _destroy(self, evt):
         self.object._setViewFrame(None)
@@ -1019,7 +1022,7 @@ class ViewTablePanel(wx.Panel):
 
     def draw(self, samples):
         self.samples = samples
-        self.Refresh()
+        wx.CallAfter(self.Refresh)
 
     def OnPaint(self, evt):
         w,h = self.GetSize()
@@ -1069,7 +1072,7 @@ class SndViewTable(wx.Frame):
         self.update()
 
     def update(self):
-        wx.CallAfter(self.wavePanel.setImage)
+        self.wavePanel.setImage()
 
     def _destroy(self, evt):
         self.obj._setViewFrame(None)
@@ -1141,7 +1144,7 @@ class SndViewTablePanel(wx.Panel):
     def setImage(self):
         if self.obj is not None:
             self.img = self.obj.getViewTable(self.GetSize(), self.begin, self.end)
-            self.Refresh()
+            wx.CallAfter(self.Refresh)
 
     def clipPos(self, pos):
         if pos[0] < 0.0: x = 0.0
@@ -1327,7 +1330,7 @@ class ViewMatrixBase(wx.Frame):
         self.SetMaxSize(self.GetSize())
 
     def update(self, samples):
-        wx.CallAfter(self.setImage, samples)
+        self.setImage(samples)
 
     def _destroy(self, evt):
         self.object._setViewFrame(None)
@@ -1343,7 +1346,7 @@ class ViewMatrix(ViewMatrixBase):
         image = wx.EmptyImage(self.size[0], self.size[1])
         image.SetData(samples)
         self.img = wx.BitmapFromImage(image)
-        self.Refresh()
+        wx.CallAfter(self.Refresh)
 
     def OnPaint(self, evt):
         dc = wx.PaintDC(self)
@@ -1468,7 +1471,7 @@ class SpectrumDisplay(wx.Frame):
         self.obj.setHeight(size[1])
 
     def update(self, points):
-        wx.CallAfter(self.spectrumPanel.setImage, points)
+        self.spectrumPanel.setImage(points)
 
     def setFscaling(self, x):
         self.spectrumPanel.setFscaling(x)
@@ -1735,7 +1738,7 @@ class ScopeDisplay(wx.Frame):
         self.obj.setGain(gain)
 
     def update(self, points):
-        wx.CallAfter(self.scopePanel.setImage, points)
+        self.scopePanel.setImage(points)
 
     def _destroy(self, evt):
         self.obj._setViewFrame(None)
@@ -1824,7 +1827,7 @@ class ScopePanel(wx.Panel):
         for j in range(4):
             dc.SetPen(wx.Pen('#888888', width=1, style=wx.DOT))
             dc.DrawLine(j*tickstep, 0, j*tickstep, h)
-            dc.DrawText("%.3f" % (j*timestep), j*tickstep+2, h-12)
+            dc.DrawText("%.3f" % (j*timestep), j*tickstep+2, h-15)
         # draw waveforms
         for i, samples in enumerate(self.img):
             gc.SetPen(self.pens[i%8])
@@ -2959,6 +2962,18 @@ class ServerGUI(wx.Frame):
 
     def setRms(self, *args):
         self.meter.setRms(*args)
+
+    def setStartButtonState(self, state):
+        if state:
+            self._started = True
+            wx.CallAfter(self.startButton.SetLabel, 'Stop')
+            if self.exit:
+                wx.CallAfter(self.quitButton.Disable)
+        else:
+            self._started = False
+            wx.CallAfter(self.startButton.SetLabel, 'Start')
+            if self.exit:
+                wx.CallAfter(self.quitButton.Enable)
 
 def ensureNFD(unistr):
     if sys.platform == 'win32' or sys.platform.startswith('linux'):

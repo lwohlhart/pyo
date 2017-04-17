@@ -22,7 +22,6 @@ Server
 - Remove, if possible, PyGILState_Ensure/PyGILState_Release from 
   the process_buffers function.
 
-
 Examples
 --------
 
@@ -37,13 +36,17 @@ Objects
   Where `inputs` are a list of trigger objects and `values` (list of floats) 
   the corresponding values to output depending which trigger has been detected.
   A trigger from the second object will make the object output the second value
-  from the list. 
+  from the list.
+
+- Added random distribution in SfMarkerShuffler.
 
 MIDI
 ----
 
 - Create a MidiLinseg object that act like MidiAdsr but with a breakpoints
   function as the envelope. The sustain point should settable by the user.
+
+- sysex support in MidiListener.
 
 
 GUI
@@ -59,6 +62,8 @@ GUI
 - Keyboard, a virtual MIDI keyboard (adapted from Zyne's one).
 
 - Save menu item in ctrl() and DataTable graph() windows.
+
+- Ability to set channel "name" in the view of PyoGuiScope and PyoGuiSpectrum.
 
 Tables
 ------

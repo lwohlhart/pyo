@@ -5809,6 +5809,8 @@ typedef struct {
     int go;
     int modebuffer[3];
     double pointerPos;
+    MYFLT lastValue;
+    int keepLast;
     MYFLT *trigsBuffer;
     TriggerStream *trig_stream;
     int init;
@@ -5832,8 +5834,11 @@ TableRead_readframes_i(TableRead *self) {
     for (i=0; i<self->bufsize; i++) {
         self->trigsBuffer[i] = 0.0;
         if (self->pointerPos < 0) {
-            if (self->init == 0)
+            if (self->init == 0) {
                 self->trigsBuffer[i] = 1.0;
+                if (self->loop == 0)
+                    self->go = 0;
+            }
             else
                 self->init = 0;
             self->pointerPos = size + self->pointerPos;
@@ -5848,10 +5853,14 @@ TableRead_readframes_i(TableRead *self) {
         if (self->go == 1) {
             ipart = (int)self->pointerPos;
             fpart = self->pointerPos - ipart;
-            self->data[i] = (*self->interp_func_ptr)(tablelist, ipart, fpart, size);
+            self->lastValue = self->data[i] = (*self->interp_func_ptr)(tablelist, ipart, fpart, size);
         }
-        else
-            self->data[i] = 0.0;
+        else {
+            if (self->keepLast == 0)
+                self->data[i] = 0.0;
+            else
+                self->data[i] = self->lastValue;
+        }
 
         self->pointerPos += inc;
     }
@@ -5874,8 +5883,11 @@ TableRead_readframes_a(TableRead *self) {
     for (i=0; i<self->bufsize; i++) {
         self->trigsBuffer[i] = 0.0;
         if (self->pointerPos < 0) {
-            if (self->init == 0)
+            if (self->init == 0) {
                 self->trigsBuffer[i] = 1.0;
+                if (self->loop == 0)
+                    self->go = 0;
+            }
             else
                 self->init = 0;
             self->pointerPos = size + self->pointerPos;
@@ -5890,10 +5902,14 @@ TableRead_readframes_a(TableRead *self) {
         if (self->go == 1) {
             ipart = (int)self->pointerPos;
             fpart = self->pointerPos - ipart;
-            self->data[i] = (*self->interp_func_ptr)(tablelist, ipart, fpart, size);
+            self->lastValue = self->data[i] = (*self->interp_func_ptr)(tablelist, ipart, fpart, size);
         }
-        else
-            self->data[i] = 0.0;
+        else {
+            if (self->keepLast == 0)
+                self->data[i] = 0.0;
+            else
+                self->data[i] = self->lastValue;
+        }
 
         inc = fr[i] * sizeOnSr;
         self->pointerPos += inc;
@@ -6006,6 +6022,8 @@ TableRead_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     self->freq = PyFloat_FromDouble(1);
     self->loop = 0;
     self->init = 1;
+    self->keepLast = 0;
+    self->lastValue = 0.0;
 	self->modebuffer[0] = 0;
 	self->modebuffer[1] = 0;
 	self->modebuffer[2] = 0;
@@ -6088,8 +6106,24 @@ static PyObject * TableRead_out(TableRead *self, PyObject *args, PyObject *kwds)
 };
 static PyObject * TableRead_stop(TableRead *self)
 {
+    int i;
     self->go = 0;
-    STOP
+    Stream_setStreamActive(self->stream, 0);
+    Stream_setStreamChnl(self->stream, 0);
+    Stream_setStreamToDac(self->stream, 0);
+    if (self->keepLast == 0) {
+        for (i=0; i<self->bufsize; i++) {
+            self->data[i] = 0;
+        }
+    }
+    else {
+        for (i=0; i<self->bufsize; i++) {
+            self->data[i] = self->lastValue;
+        }
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
 };
 
 static PyObject * TableRead_multiply(TableRead *self, PyObject *arg) { MULTIPLY };
@@ -6183,6 +6217,17 @@ TableRead_setInterp(TableRead *self, PyObject *arg)
 }
 
 static PyObject *
+TableRead_setKeepLast(TableRead *self, PyObject *arg)
+{
+    ASSERT_ARG_NOT_NULL
+
+    self->keepLast = PyInt_AsLong(arg);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *
 TableRead_reset(TableRead *self)
 {
     self->pointerPos = 0.0;
@@ -6213,6 +6258,7 @@ static PyMethodDef TableRead_methods[] = {
 {"setFreq", (PyCFunction)TableRead_setFreq, METH_O, "Sets oscillator frequency in cycle per second."},
 {"setLoop", (PyCFunction)TableRead_setLoop, METH_O, "Sets the looping mode."},
 {"setInterp", (PyCFunction)TableRead_setInterp, METH_O, "Sets reader interpolation mode."},
+{"setKeepLast", (PyCFunction)TableRead_setKeepLast, METH_O, "Sets keepLast mode."},
 {"reset", (PyCFunction)TableRead_reset, METH_NOARGS, "Resets pointer position to 0."},
 {"setMul", (PyCFunction)TableRead_setMul, METH_O, "Sets oscillator mul factor."},
 {"setAdd", (PyCFunction)TableRead_setAdd, METH_O, "Sets oscillator add factor."},

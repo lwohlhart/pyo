@@ -49,6 +49,9 @@ int Server_jack_init(Server *self) { return -10; };
 int Server_jack_deinit(Server *self) { return 0; };
 int Server_jack_start(Server *self) { return 0; };
 int Server_jack_stop(Server *self) { return 0; };
+int jack_input_port_set_names(Server *self) { return 0; };
+int jack_output_port_set_names(Server *self) { return 0; };
+
 #endif
 
 #ifdef USE_COREAUDIO
@@ -192,6 +195,7 @@ void
     Server *self;
     self = (Server *)arg;
 
+    PyGILState_STATE s = PyGILState_Ensure();
     if (self->recdur < 0) {
         Server_error(self,"Duration must be specified for Offline Server (see Server.recordOptions).");
     }
@@ -208,6 +212,8 @@ void
         sf_close(self->recfile);
         Server_message(self,"Offline Server rendering finished.\n");
     }
+    PyGILState_Release(s);
+
     return NULL;
 }
 
@@ -570,6 +576,8 @@ Server_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     self->jackautoout = 1;
     self->jackAutoConnectInputPorts = PyList_New(0);
     self->jackAutoConnectOutputPorts = PyList_New(0);
+    self->isJackTransportSlave = 0;
+    self->jack_transport_state = 0;
     self->samplingRate = 44100.0;
     self->nchnls = 2;
     self->ichnls = 2;
@@ -907,6 +915,58 @@ Server_setJackAutoConnectOutputPorts(Server *self, PyObject *arg)
 }
 
 static PyObject *
+Server_setJackInputPortNames(Server *self, PyObject *arg)
+{
+    PyObject *tmp;
+
+    if (arg != NULL) {
+        if (PyList_Check(arg) || PY_STRING_CHECK(arg)) {
+            tmp = arg;
+            Py_XDECREF(self->jackInputPortNames);
+            Py_INCREF(tmp);
+            self->jackInputPortNames = tmp;
+
+            jack_input_port_set_names(self);
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Server_setJackOutputPortNames(Server *self, PyObject *arg)
+{
+    PyObject *tmp;
+
+    if (arg != NULL) {
+        if (PyList_Check(arg) || PY_STRING_CHECK(arg)) {
+            tmp = arg;
+            Py_XDECREF(self->jackOutputPortNames);
+            Py_INCREF(tmp);
+            self->jackOutputPortNames = tmp;
+
+            jack_output_port_set_names(self);
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Server_setIsJackTransportSlave(Server *self, PyObject *arg)
+{
+    if (self->server_booted) {
+        Server_warning(self,"Can't change isJackTransportSlave mode for booted server.\n");
+        Py_RETURN_NONE;
+    }
+    if (arg != NULL) {
+        if (PyInt_Check(arg))
+            self->isJackTransportSlave = PyInt_AsLong(arg);
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 Server_setGlobalSeed(Server *self, PyObject *arg)
 {
     self->globalSeed = 0;
@@ -1110,7 +1170,7 @@ Server_shutdown(Server *self)
     Py_RETURN_NONE;
 }
 
-static PyObject *
+PyObject *
 Server_boot(Server *self, PyObject *arg)
 {
     int i, audioerr = 0, midierr = 0;
@@ -1221,7 +1281,7 @@ Server_boot(Server *self, PyObject *arg)
     Py_RETURN_NONE;
 }
 
-static PyObject *
+PyObject *
 Server_start(Server *self)
 {
     int err = -1;
@@ -1278,6 +1338,9 @@ Server_start(Server *self)
         Server_error(self, "Error starting server.\n");
     }
 
+    if (self->withGUI && PyObject_HasAttrString((PyObject *)self->GUI, "setStartButtonState"))
+        PyObject_CallMethod((PyObject *)self->GUI, "setStartButtonState", "i", 1);
+
     Py_RETURN_NONE;
 }
 
@@ -1312,9 +1375,8 @@ Server_stop(Server *self)
         self->server_started = 0;
     }
 
-    /* This call is needed to recover from thread fork with python3/jack on debian.*/
-    /* TODO: Need to be tested with other OSes and audio driver. */
-    //PyOS_AfterFork();
+    if (self->withGUI && PyObject_HasAttrString((PyObject *)self->GUI, "setStartButtonState"))
+        PyObject_CallMethod((PyObject *)self->GUI, "setStartButtonState", "i", 0);
 
     Py_RETURN_NONE;
 }
@@ -1953,6 +2015,9 @@ static PyMethodDef Server_methods[] = {
     {"setJackAuto", (PyCFunction)Server_setJackAuto, METH_VARARGS, "Tells the server to auto-connect Jack ports (0 = disable, 1 = enable)."},
     {"setJackAutoConnectInputPorts", (PyCFunction)Server_setJackAutoConnectInputPorts, METH_O, "Sets a list of ports to auto-connect inputs when using Jack."},
     {"setJackAutoConnectOutputPorts", (PyCFunction)Server_setJackAutoConnectOutputPorts, METH_O, "Sets a list of ports to auto-connect outputs when using Jack."},
+    {"setJackInputPortNames", (PyCFunction)Server_setJackInputPortNames, METH_O, "Sets the short name of input ports for jack server."},
+    {"setJackOutputPortNames", (PyCFunction)Server_setJackOutputPortNames, METH_O, "Sets the short name of output ports for jack server."},
+    {"setIsJackTransportSlave", (PyCFunction)Server_setIsJackTransportSlave, METH_O, "Sets if the server's start/stop is slave of jack transport."},
     {"setGlobalSeed", (PyCFunction)Server_setGlobalSeed, METH_O, "Sets the server's global seed for random objects."},
     {"setAmp", (PyCFunction)Server_setAmp, METH_O, "Sets the overall amplitude."},
     {"setAmpCallable", (PyCFunction)Server_setAmpCallable, METH_O, "Sets the Server's GUI callable object."},
